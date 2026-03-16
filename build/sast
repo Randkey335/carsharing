@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+echo "Running bandit..."
+python3 -m bandit -r app/ -f json -o bandit-report.json

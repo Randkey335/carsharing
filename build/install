@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+pip install --break-system-packages --upgrade pip 
+pip install --break-system-packages -r requirements.txt -r requirements-dev.txt

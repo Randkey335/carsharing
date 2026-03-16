@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e
+echo "Deploying to production server..."
+
+# Параметры подключения (задаются через переменные окружения)
+REMOTE_USER="${REMOTE_USER:-deploy}"
+REMOTE_HOST="${REMOTE_HOST:-example.com}"
+REMOTE_PATH="${REMOTE_PATH:-/opt/carsharing}"
+SSH_KEY="${SSH_KEY:-}"  # можно передать как строку или использовать агент
+
+# Копирование docker-compose.prod.yml на удалённый сервер
+scp -o StrictHostKeyChecking=no docker-compose.prod.yml "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/"
+
+# Удалённое выполнение команд
+ssh -o StrictHostKeyChecking=no "${REMOTE_USER}@${REMOTE_HOST}" << EOF
+    cd "${REMOTE_PATH}"
+    export DOCKER_IMAGE="${DOCKER_IMAGE}"
+    export DOCKER_TAG="${DOCKER_TAG}"
+    export DATABASE_URL="${DATABASE_URL}"
+    export PROD_PORT="${PROD_PORT:-5000}"
+    echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+    docker pull "${DOCKER_IMAGE}:${DOCKER_TAG}"
+    docker-compose -f docker-compose.prod.yml down || true
+    docker-compose -f docker-compose.prod.yml up -d
+    docker image prune -f
+EOF
+echo "Deployment completed."
