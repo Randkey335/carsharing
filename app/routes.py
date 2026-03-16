@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify, request, abort
 from .models import Car, Trip
-from . import db
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
