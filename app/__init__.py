@@ -48,4 +48,4 @@ def create_app():
         def not_found(e):
             return jsonify(error="Not found"), 404
 
-    return app
+    return app 
