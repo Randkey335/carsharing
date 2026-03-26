@@ -1,0 +1,6 @@
+curl http://localhost:5002/api/health
+curl http://localhost:5002/api/departments
+curl http://localhost:5002/api/periods
+curl http://localhost:5002/api/periods/current
+curl http://localhost:5002/api/manager/ivanov/groups
+curl http://localhost:5002/api/manager/sidorova/groups
