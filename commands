@@ -1,0 +1,12 @@
+curl http://localhost:5000/api/cars/free
+
+curl "http://localhost:5000/api/cars/1?phone=79001234567&code=1234"
+
+# Нет параметров — 401
+curl "http://localhost:5000/api/cars/1"
+
+# Неверный телефон/код — 401
+curl "http://localhost:5000/api/cars/1?phone=79999999999&code=0000"
+
+# Несуществующий id — 404
+curl "http://localhost:5000/api/cars/999?phone=79001234567&code=1234"
