@@ -10,14 +10,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
   web:
     build: .
     environment:
-      DATABASE_URL: postgresql://user:password@db:5432/carsharing
+      DATABASE_URL: postgresql://user:password@db:5433/carsharing
       DB_HOST: db
-      DB_PORT: 5432
+      DB_PORT: 5433
       DATABASE: postgres
     ports:
       - "5000:5000"
