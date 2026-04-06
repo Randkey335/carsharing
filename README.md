@@ -1,289 +1,243 @@
 # Airline Service
 
-REST API-сервис для авиакомпании на Flask и PostgreSQL.
+REST API и веб-страница для авиакомпании на Flask и PostgreSQL.
 
 ## Обзор
 
-Проект реализует:
-- веб-сервис на Flask
-- ORM через Flask-SQLAlchemy
-- PostgreSQL как хранилище данных
-- Docker-окружение для локального запуска
-- CI/CD-ориентированные конфигурации для TeamCity
-- unit-тесты с pytest (19 полностью автоматизированных тестов)
-- вспомогательные скрипты для сборки, линтинга, тестирования и анализа безопасности
+Проект включает:
+- Flask-приложение с SQLAlchemy
+- PostgreSQL для хранения данных
+- веб-страницу для ручной проверки API
+- аутентификацию по телефону и паролю
+- безопасное хранение паролей в виде хэшей
+- Docker для локального запуска
+- CI/CD-ориентированную структуру под TeamCity
+- unit/интеграционные тесты на pytest
 
-Сервис предоставляет два основных API-эндпойнта:
-- `GET /api/flights` — список всех рейсов с информацией о времени, аэропортах и длительности
-- `GET /api/miles?phone=<phone>&password=<password>` — информация о накопленных милях пассажира (требует аутентификацию)
+Основные маршруты:
+- `GET /` — HTML-страница сервиса
+- `GET /api/flights` — список рейсов
+- `GET /api/miles?phone=<phone>&password=<password>` — мили пассажира (с аутентификацией)
 
 ---
 
 ## Структура проекта
 
-### Корневые файлы
+### Корень проекта
 
-- `README.md` — этот файл.
-- `Dockerfile` — образ для приложения, на основе `python:3.9-slim`.
-- `docker-compose.yml` — конфигурация для локального запуска приложения и PostgreSQL.
-- `docker-compose.teamcity.yml` — конфигурация для запуска TeamCity server + agent.
-- `Dockerfile.teamcity-agent` — кастомный образ TeamCity agent, в котором установлены Python и dev-зависимости.
-- `entrypoint.sh` — стартовый скрипт контейнера `web`.
-- `wait_for_db.py` — скрипт ожидания доступности PostgreSQL.
-- `requirements.txt` — runtime-зависимости приложения.
-- `requirements-dev.txt` — dev-зависимости для тестов, линтинга и анализа безопасности.
-- `.flake8` — правила проверки кода.
-- `commands` — примеры HTTP-запросов к API.
+- `README.md` — документация.
+- `Dockerfile` — образ приложения на базе `python:3.9-slim`.
+- `docker-compose.yml` — запуск `web` + `db` локально.
+- `docker-compose.teamcity.yml` — TeamCity server + agent.
+- `Dockerfile.teamcity-agent` — кастомный TeamCity agent с Python-инструментами.
+- `entrypoint.sh` — запуск ожидания БД и Flask.
+- `wait_for_db.py` — ожидание доступности PostgreSQL.
+- `requirements.txt` — runtime-зависимости.
+- `requirements-dev.txt` — dev-зависимости (pytest, flake8, bandit).
+- `.flake8` — конфиг линтера.
+- `commands` — примеры curl-запросов.
 
-### Каталог `app/`
+### Папка `app/`
 
-- `app/__init__.py` — создание Flask-приложения, инициализация БД, создание таблиц и импорт маршрутов.
+- `app/__init__.py` — создание app, инициализация БД, seed-данные, миграция legacy-схемы паролей, роут `/`.
 - `app/config.py` — конфигурация SQLAlchemy.
-- `app/models.py` — модели данных `Flight` и `Passenger`.
-- `app/routes.py` — API-маршруты.
+- `app/models.py` — модели `Flight` и `Passenger`.
+- `app/routes.py` — API-роуты `/api/flights` и `/api/miles`.
+- `app/templates/index.html` — UI для проверки функционала из браузера.
 
-### Каталог `tests/`
+### Папка `tests/`
 
-- `tests/__init__.py` — инициализация тестовой папки.
-- `tests/test_app.py` — 19 unit-тестов для моделей, маршрутов, аутентификации и обработчиков ошибок.
+- `tests/test_app.py` — 20 автотестов (API, аутентификация, модели, ошибки, интеграция, HTML-страница).
 
-### Каталог `build/`
+### Папка `build/`
 
-В каталоге `build/` находятся скрипты для автоматизации сборки и проверки:
-- `build/install` — установка пакетов Python.
-- `build/lint` — запуск `flake8` для проверки стиля.
-- `build/sast` — запуск `bandit` для анализа безопасности.
-- `build/test` — запуск `pytest` для unit-тестов.
-- `build/push` — пуш Docker-образа в реестр.
-- `build/deploy` — деплой на сервер.
+- `build/install` — установка зависимостей.
+- `build/lint` — запуск flake8.
+- `build/sast` — запуск bandit.
+- `build/test` — запуск pytest.
+- `build/push` — push Docker-образа.
+- `build/deploy` — deploy-скрипт.
 
 ---
 
-## Как это работает
+## Как работает приложение
 
-### Приложение и инициализация
+### Инициализация
 
-`app/__init__.py` создаёт Flask-приложение через `create_app()`:
-- загружает настройки из `app.config.Config`
-- инициализирует SQLAlchemy
-- создаёт таблицы при старте через `db.create_all()`
-- заполняет БД начальными данными, если таблицы пусты:
-  - 4 рейса (`Flight`)
-  - 3 пассажира (`Passenger`)
-- регистрирует blueprint из `app.routes`
-- добавляет обработчики ошибок 401 и 404
-
-### Конфигурация БД
-
-`app/config.py` использует переменную окружения `DATABASE_URL`.
-Если она не задана, по умолчанию берётся строка:
-
-```python
-postgresql://user:password@db:5432/carsharing
-```
+В `create_app()`:
+- создаются таблицы,
+- выполняется попытка расширить колонку пароля до `VARCHAR(255)` для старых БД,
+- добавляются стартовые рейсы и пассажиры,
+- пароли seed-пользователей сохраняются в хэшированном виде,
+- legacy plaintext-пароли автоматически мигрируются в хэш при старте,
+- регистрируются API-маршруты и корневой маршрут `/`.
 
 ### Модели
 
-`app/models.py` содержит две таблицы:
+`Flight`:
+- `id`
+- `flight_number` (unique)
+- `departure_airport`
+- `arrival_airport`
+- `departure_time`
+- `duration`
 
-- `Flight`
-  - `id` — primary key
-  - `flight_number` — номер рейса, уникальное поле
-  - `departure_airport` — аэропорт вылета
-  - `arrival_airport` — аэропорт прилета
-  - `departure_time` — время вылета (формат HH:MM)
-  - `duration` — длительность полёта (формат HH:MM)
+`Passenger`:
+- `id`
+- `phone` (unique)
+- `password` (хэш)
+- `miles`
 
-- `Passenger`
-  - `id` — primary key
-  - `phone` — номер телефона пассажира, уникальное поле
-  - `password` — пароль для аутентификации
-  - `miles` — количество накопленных миль
+### Аутентификация
 
-### Маршруты API
-
-`app/routes.py` содержит URL-эндпойнты:
-
-- `GET /api/flights`
-  - возвращает список всех рейсов
-  - ответ JSON-массив с полями:
-    - `flight_number` — номер рейса
-    - `departure_airport` — аэропорт вылета
-    - `arrival_airport` — аэропорт прилета
-    - `departure_time` — время вылета
-    - `duration` — длительность полёта
-
-- `GET /api/miles`
-  - принимает query-параметры `phone` и `password`
-  - проверяет пару телефон-пароль в БД
-  - если нет — возвращает 401
-  - возвращает JSON с полями:
-    - `miles` — количество миль пассажира
-    - `phone` — номер телефона пассажира
+Эндпойнт `/api/miles`:
+- принимает `phone` и `password`,
+- ищет пассажира по телефону,
+- проверяет пароль через `check_password_hash`,
+- при ошибке возвращает `401`.
 
 ---
 
-## Docker-сборка и запуск
+## Веб-страница
 
-### Локальный запуск
+После запуска откройте:
 
-1. Убедитесь, что установлен Docker.
-2. Выполните:
+- `http://localhost:5001/`
+
+На странице доступны:
+- загрузка списка рейсов,
+- ввод телефона и пароля,
+- получение миль,
+- отображение ошибок (`Missing credentials`, `Invalid credentials`).
+
+---
+
+## Docker-запуск
 
 ```bash
+docker compose down
 docker compose up --build
 ```
 
-3. В браузере или curl используйте `http://localhost:5001/api/flights`.
+Проверка:
 
-### Что делает контейнер `web`
-
-`Dockerfile` строит образ на Python 3.9, устанавливает зависимости и копирует код.
-
-`entrypoint.sh` выполняет:
-
-```sh
-python wait_for_db.py
-python -m flask run --host=0.0.0.0
-```
-
-Это гарантирует, что веб-приложение стартует только после готовности PostgreSQL.
-
-### Ожидание БД
-
-`wait_for_db.py` выполняет бесконечный цикл, пока PostgreSQL не станет доступным по `DATABASE_URL`.
+- UI: `http://localhost:5001/`
+- API: `http://localhost:5001/api/flights`
 
 ---
 
 ## Переменные окружения
 
-Основная переменная:
+Главная переменная:
 
-- `DATABASE_URL` — строка подключения к PostgreSQL.
+- `DATABASE_URL` (по умолчанию `postgresql://user:password@db:5432/carsharing`)
 
-Примеры из `docker-compose.yml`:
+Дополнительно в `docker-compose.yml`:
 
-- `postgresql://user:password@db:5432/carsharing`
 - `DB_HOST=db`
 - `DB_PORT=5432`
 - `DATABASE=postgres`
 
-Для локального запуска можно установить переменную явно:
-
-```bash
-set DATABASE_URL=postgresql://user:password@localhost:5432/carsharing
-```
-
 ---
 
-## Тестирование и линтинг
+## Тестирование и качество
 
-### Установка зависимостей
+### Установка
 
 ```bash
 ./build/install
 ```
 
-### Unit-тесты
+### Тесты
 
 ```bash
 ./build/test
 ```
 
-Проект содержит 19 полностью автоматизированных unit-тестов:
-- 3 теста для API рейсов
-- 8 тестов для аутентификации и получения миль
-- 4 теста для моделей БД (создание, уникальность)
-- 2 теста для обработчиков ошибок
-- 2 интеграционных теста
+Локально:
 
-Для локального запуска:
 ```bash
 python -m pytest tests/test_app.py -v
 ```
 
-### Проверка стиля
+Сейчас в проекте **20 тестов**:
+- API рейсов,
+- API миль и ошибки авторизации,
+- HTML-страница `/`,
+- модели и ограничения уникальности,
+- интеграционные сценарии.
+
+### Линтинг
 
 ```bash
 ./build/lint
 ```
 
-### Анализ безопасности
+### SAST
 
 ```bash
 ./build/sast
 ```
 
-> В `requirements-dev.txt` находятся инструменты `pytest`, `flake8`, `bandit`.
+---
+
+## TeamCity / CI/CD
+
+Конфигурация TeamCity хранится в:
+
+- `docker-compose.teamcity.yml`
+- `Dockerfile.teamcity-agent`
+
+Типовой pipeline:
+
+- install
+- lint
+- sast
+- test
+- build
+- push
+- deploy
 
 ---
 
-## TeamCity / CI
-
-В репозитории есть конфигурация для TeamCity:
-
-- `docker-compose.teamcity.yml` — поднимает `teamcity-server` и `teamcity-agent` в Docker.
-- `Dockerfile.teamcity-agent` — устанавливает Python и пакеты из `requirements-dev.txt`.
-
-`Dockerfile.teamcity-agent` также устанавливает специальный `ENTRYPOINT`, который даёт агенту доступ к Docker-сокету.
-
----
-
-## Примеры запросов
-
-Файл `commands` содержит curl-примеры:
+## Примеры API-запросов
 
 ```bash
-# Получить список всех рейсов
+# Список рейсов
 curl http://localhost:5001/api/flights
 
-# Получить накопленные мили со льготой (успешные учетные данные)
+# Успешная авторизация и мили
 curl "http://localhost:5001/api/miles?phone=%2B7957285726&password=aercd112"
 
-# Получить накопленные мили второго пассажира
-curl "http://localhost:5001/api/miles?phone=%2B7957385621&password=okliuj91"
-
-# Получить накопленные мили третьего пассажира
-curl "http://localhost:5001/api/miles?phone=%2B79175715718&password=09ikjhbn12"
-
-# Нет параметров - 401
+# Ошибка: нет параметров
 curl "http://localhost:5001/api/miles"
 
-# Неверный пароль - 401
+# Ошибка: неверный пароль
 curl "http://localhost:5001/api/miles?phone=%2B7957285726&password=wrongpassword"
-
-# Несуществующий телефон - 401
-curl "http://localhost:5001/api/miles?phone=%2B79999999999&password=password"
 ```
-
-## Примеры данных
-
-### Рейсы (Flights)
-
-| Номер | Аэропорт вылета | Аэропорт прилета | Время вылета | Длительность |
-|-------|-----------------|------------------|-------------|-------------|
-| 1     | Анапа           | Внуково          | 10:00       | 4:55        |
-| 2     | Шереметьево     | Калининград      | 11:20       | 2:55        |
-| 3     | Пулково         | Шереметьево      | 09:05       | 1:05        |
-| 4     | Саратов         | Толмачево        | 11:25       | 5:02        |
-
-### Пассажиры (Passengers)
-
-| ID | Номер телефона  | Пароль     | Мили |
-|----|-----------------|-----------|------|
-| 1  | +7957285726     | aercd112  | 123  |
-| 2  | +7957385621     | okliuj91  | 91   |
-| 3  | +79175715718    | 09ikjhbn12| 192  |
 
 ---
 
-## Замечания
+## Тестовые данные
 
-- В `docker-compose.yml` сервис `web` зависит от `db`, но `depends_on` не гарантирует, что PostgreSQL уже готов к соединениям. Для этого используется `wait_for_db.py`.
-- Стартовая инициализация данных выполняется автоматически при первом запуске.
-- Unit-тесты охватывают все основные компоненты системы: модели, маршруты, аутентификацию и обработку ошибок.
-- Аутентификация происходит через сравнение телефона и пароля из query-параметров с данными в БД.
-- Для реального продакшена стоит добавить миграции (`Flask-Migrate` или Alembic), отдельный prod-файл `docker-compose.prod.yml`, безопасное управление секретами и HTTPS.
+### Рейсы
+
+| Номер | Аэропорт вылета | Аэропорт прилета | Время вылета | Длительность |
+|---|---|---|---|---|
+| 1 | Анапа | Внуково | 10:00 | 4:55 |
+| 2 | Шереметьево | Калининград | 11:20 | 2:55 |
+| 3 | Пулково | Шереметьево | 09:05 | 1:05 |
+| 4 | Саратов | Толмачево | 11:25 | 5:02 |
+
+### Пассажиры
+
+| ID | Телефон | Мили |
+|---|---|---|
+| 1 | +7957285726 | 123 |
+| 2 | +7957385621 | 91 |
+| 3 | +79175715718 | 192 |
+
+Примечание: в БД хранятся **хэши** паролей, не plaintext.
 
 ---
 
@@ -293,14 +247,7 @@ curl "http://localhost:5001/api/miles?phone=%2B79999999999&password=password"
 docker compose up --build
 ```
 
-Откройте `http://localhost:5001/api/flights` для получения списка всех рейсов.
-
-Затем запросите мили пассажира:
-```bash
-curl "http://localhost:5001/api/miles?phone=%2B7957285726&password=aercd112"
-```
-
-Для запуска unit-тестов локально:
-```bash
-python -m pytest tests/test_app.py -v
-```
+Затем откройте `http://localhost:5001/` и проверьте:
+- загрузку рейсов,
+- успешную/неуспешную аутентификацию,
+- получение миль.

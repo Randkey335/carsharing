@@ -2,6 +2,8 @@ import pytest
 import sys
 import os
 from flask import Flask
+from flask import render_template
+from werkzeug.security import generate_password_hash
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -14,12 +16,17 @@ from app.routes import bp
 @pytest.fixture
 def app():
     """Create application for testing."""
-    app = Flask(__name__)
+    template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'app', 'templates'))
+    app = Flask(__name__, template_folder=template_dir)
     app.config['TESTING'] = True
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     
     db.init_app(app)
     app.register_blueprint(bp)
+
+    @app.get('/')
+    def index():
+        return render_template('index.html')
     
     # Add error handlers
     @app.errorhandler(401)
@@ -42,9 +49,9 @@ def app():
             Flight(id=4, flight_number='4', departure_airport='Саратов', arrival_airport='Толмачево', departure_time='11:25', duration='5:02'),
         ]
         passengers = [
-            Passenger(id=1, phone='+7957285726', password='aercd112', miles=123),
-            Passenger(id=2, phone='+7957385621', password='okliuj91', miles=91),
-            Passenger(id=3, phone='+79175715718', password='09ikjhbn12', miles=192),
+            Passenger(id=1, phone='+7957285726', password=generate_password_hash('aercd112'), miles=123),
+            Passenger(id=2, phone='+7957385621', password=generate_password_hash('okliuj91'), miles=91),
+            Passenger(id=3, phone='+79175715718', password=generate_password_hash('09ikjhbn12'), miles=192),
         ]
         for flight in flights:
             db.session.add(flight)
@@ -67,6 +74,11 @@ def client(app):
 
 class TestFlights:
     """Tests for flights API."""
+
+    def test_index_page(self, client):
+        """Test that HTML page is available."""
+        response = client.get('/')
+        assert response.status_code == 200
     
     def test_get_flights(self, client):
         """Test getting all flights."""
@@ -186,7 +198,7 @@ class TestModels:
         with app.app_context():
             passenger = Passenger(
                 phone='+79999999999',
-                password='testpass123',
+                password=generate_password_hash('testpass123'),
                 miles=500
             )
             db.session.add(passenger)
@@ -194,7 +206,7 @@ class TestModels:
             
             retrieved = Passenger.query.filter_by(phone='+79999999999').first()
             assert retrieved is not None
-            assert retrieved.password == 'testpass123'
+            assert retrieved.password != 'testpass123'
             assert retrieved.miles == 500
     
     def test_flight_unique_number(self, app):
@@ -227,7 +239,7 @@ class TestModels:
         with app.app_context():
             passenger1 = Passenger(
                 phone='+78888888888',
-                password='pass1',
+                password=generate_password_hash('pass1'),
                 miles=100
             )
             db.session.add(passenger1)
@@ -235,7 +247,7 @@ class TestModels:
             
             passenger2 = Passenger(
                 phone='+78888888888',
-                password='pass2',
+                password=generate_password_hash('pass2'),
                 miles=200
             )
             db.session.add(passenger2)

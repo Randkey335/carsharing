@@ -13,5 +13,5 @@ class Passenger(db.Model):
     __tablename__ = 'passengers'
     id = db.Column(db.Integer, primary_key=True)
     phone = db.Column(db.String(20), unique=True)
-    password = db.Column(db.String(50))
+    password = db.Column(db.String(255))
     miles = db.Column(db.Integer)

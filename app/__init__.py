@@ -1,5 +1,7 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
+from werkzeug.security import generate_password_hash
 
 db = SQLAlchemy()
 
@@ -13,6 +15,13 @@ def create_app():
         # Импортируем модели до создания таблиц
         from .models import Flight, Passenger
         db.create_all()
+
+        # Ensure legacy DB schema supports hashed passwords.
+        try:
+            db.session.execute(text('ALTER TABLE passengers ALTER COLUMN password TYPE VARCHAR(255)'))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         
         # Заполняем начальными данными, если таблицы пусты
         if Flight.query.count() == 0:
@@ -34,12 +43,30 @@ def create_app():
                 {'id': 3, 'phone': '+79175715718', 'password': '09ikjhbn12', 'miles': 192},
             ]
             for p in passengers_data:
-                passenger = Passenger(id=p['id'], phone=p['phone'], password=p['password'], miles=p['miles'])
+                passenger = Passenger(
+                    id=p['id'],
+                    phone=p['phone'],
+                    password=generate_password_hash(p['password']),
+                    miles=p['miles']
+                )
                 db.session.add(passenger)
+            db.session.commit()
+
+        # One-time migration for legacy plaintext passwords.
+        migrated = False
+        for passenger in Passenger.query.all():
+            if passenger.password and '$' not in passenger.password:
+                passenger.password = generate_password_hash(passenger.password)
+                migrated = True
+        if migrated:
             db.session.commit()
 
         from . import routes
         app.register_blueprint(routes.bp)
+
+        @app.get('/')
+        def index():
+            return render_template('index.html')
 
         @app.errorhandler(401)
         def unauthorized(e):

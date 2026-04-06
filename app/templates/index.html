@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airline Service</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #1f2a37;
+      --accent: #0b7285;
+      --accent-dark: #075985;
+      --border: #d9e2ec;
+      --error: #b42318;
+      --ok: #067647;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(180deg, #eef6ff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 30px;
+    }
+
+    .subtitle {
+      margin: 0 0 24px;
+      color: #52606d;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 900px) {
+      .grid { grid-template-columns: 1.2fr 1fr; }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 20px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    button:hover { background: var(--accent-dark); }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .status {
+      min-height: 22px;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .status.ok { color: var(--ok); }
+    .status.error { color: var(--error); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      padding: 8px 6px;
+      vertical-align: top;
+    }
+
+    th { font-size: 13px; color: #52606d; }
+
+    .json {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 88px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Airline Service</h1>
+    <p class="subtitle">Веб-страница для проверки API рейсов и получения накопленных миль.</p>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Рейсы</h2>
+        <div class="controls">
+          <button id="loadFlightsBtn" type="button">Загрузить рейсы</button>
+        </div>
+        <div id="flightsStatus" class="status"></div>
+        <table id="flightsTable" aria-label="Список рейсов">
+          <thead>
+            <tr>
+              <th>Номер</th>
+              <th>Вылет</th>
+              <th>Прилет</th>
+              <th>Время</th>
+              <th>Длительность</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Мили пассажира</h2>
+        <input id="phoneInput" type="text" placeholder="Телефон, например +7957285726">
+        <input id="passwordInput" type="password" placeholder="Пароль">
+        <div class="controls">
+          <button id="loadMilesBtn" type="button">Получить мили</button>
+        </div>
+        <div id="milesStatus" class="status"></div>
+        <div id="milesOutput" class="json">{}</div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const flightsStatus = document.getElementById('flightsStatus');
+    const flightsTableBody = document.querySelector('#flightsTable tbody');
+    const milesStatus = document.getElementById('milesStatus');
+    const milesOutput = document.getElementById('milesOutput');
+
+    async function loadFlights() {
+      flightsStatus.textContent = 'Загрузка...';
+      flightsStatus.className = 'status';
+      flightsTableBody.innerHTML = '';
+      try {
+        const response = await fetch('/api/flights');
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
+        }
+        const flights = await response.json();
+        flights.forEach((f) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td>' + f.flight_number + '</td>' +
+            '<td>' + f.departure_airport + '</td>' +
+            '<td>' + f.arrival_airport + '</td>' +
+            '<td>' + f.departure_time + '</td>' +
+            '<td>' + f.duration + '</td>';
+          flightsTableBody.appendChild(tr);
+        });
+        flightsStatus.textContent = 'Рейсы успешно загружены: ' + flights.length;
+        flightsStatus.className = 'status ok';
+      } catch (err) {
+        flightsStatus.textContent = 'Ошибка загрузки рейсов: ' + err.message;
+        flightsStatus.className = 'status error';
+      }
+    }
+
+    async function loadMiles() {
+      const phone = document.getElementById('phoneInput').value.trim();
+      const password = document.getElementById('passwordInput').value;
+
+      milesStatus.textContent = 'Проверка...';
+      milesStatus.className = 'status';
+      milesOutput.textContent = '{}';
+
+      try {
+        const url = '/api/miles?phone=' + encodeURIComponent(phone) + '&password=' + encodeURIComponent(password);
+        const response = await fetch(url);
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.error || ('HTTP ' + response.status));
+        }
+
+        milesOutput.textContent = JSON.stringify(payload, null, 2);
+        milesStatus.textContent = 'Мили успешно получены';
+        milesStatus.className = 'status ok';
+      } catch (err) {
+        milesStatus.textContent = 'Ошибка: ' + err.message;
+        milesStatus.className = 'status error';
+      }
+    }
+
+    document.getElementById('loadFlightsBtn').addEventListener('click', loadFlights);
+    document.getElementById('loadMilesBtn').addEventListener('click', loadMiles);
+
+    loadFlights();
+  </script>
+</body>
+</html>
