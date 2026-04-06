@@ -1,12 +1,20 @@
-curl http://localhost:5000/api/cars/free
+# Получить список всех рейсов
+curl http://localhost:5001/api/flights
 
-curl "http://localhost:5000/api/cars/1?phone=79001234567&code=1234"
+# Получить накопленные мили со льготой (требует имя пользователя и пароль - успешные учетные данные)
+curl "http://localhost:5001/api/miles?phone=%2B7957285726&password=aercd112"
 
-# Нет параметров — 401
-curl "http://localhost:5000/api/cars/1"
+# Получить накопленные мили со второго пользователя
+curl "http://localhost:5001/api/miles?phone=%2B7957385621&password=okliuj91"
 
-# Неверный телефон/код — 401
-curl "http://localhost:5000/api/cars/1?phone=79999999999&code=0000"
+# Получить накопленные мили с третьего пользователя
+curl "http://localhost:5001/api/miles?phone=%2B79175715718&password=09ikjhbn12"
 
-# Несуществующий id — 404
-curl "http://localhost:5000/api/cars/999?phone=79001234567&code=1234"
+# Нет параметров - 401
+curl "http://localhost:5001/api/miles"
+
+# Неверный пароль - 401
+curl "http://localhost:5001/api/miles?phone=%2B7957285726&password=wrongpassword"
+
+# Несуществующий телефон - 401
+curl "http://localhost:5001/api/miles?phone=%2B79999999999&password=password"
