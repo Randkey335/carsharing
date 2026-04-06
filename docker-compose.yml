@@ -10,7 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
   web:
     build: .
@@ -20,7 +20,7 @@ services:
       DB_PORT: 5432
       DATABASE: postgres
     ports:
-      - "5000:5000"
+      - "5001:5000"
     depends_on:
       - db
 

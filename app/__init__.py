@@ -1,5 +1,7 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
+from werkzeug.security import generate_password_hash
 
 db = SQLAlchemy()
 
@@ -11,35 +13,60 @@ def create_app():
 
     with app.app_context():
         # Импортируем модели до создания таблиц
-        from .models import Car, Trip
+        from .models import Flight, Passenger
         db.create_all()
+
+        # Ensure legacy DB schema supports hashed passwords.
+        try:
+            db.session.execute(text('ALTER TABLE passengers ALTER COLUMN password TYPE VARCHAR(255)'))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         
         # Заполняем начальными данными, если таблицы пусты
-        if Car.query.count() == 0:
-            cars_data = [
-                {'id': 1, 'model': 'Kia Rio', 'number': 'о787оо50', 'reserved': True},
-                {'id': 2, 'model': 'VW Polo', 'number': 'е887ео777', 'reserved': False},
-                {'id': 3, 'model': 'VW Polo', 'number': 'м761он797', 'reserved': True},
-                {'id': 4, 'model': 'Toyota RAV4', 'number': 'н761он797', 'reserved': True},
+        if Flight.query.count() == 0:
+            flights_data = [
+                {'id': 1, 'flight_number': '1', 'departure_airport': 'Анапа', 'arrival_airport': 'Внуково', 'departure_time': '10:00', 'duration': '4:55'},
+                {'id': 2, 'flight_number': '2', 'departure_airport': 'Шереметьево', 'arrival_airport': 'Калининград', 'departure_time': '11:20', 'duration': '2:55'},
+                {'id': 3, 'flight_number': '3', 'departure_airport': 'Пулково', 'arrival_airport': 'Шереметьево', 'departure_time': '09:05', 'duration': '1:05'},
+                {'id': 4, 'flight_number': '4', 'departure_airport': 'Саратов', 'arrival_airport': 'Толмачево', 'departure_time': '11:25', 'duration': '5:02'},
             ]
-            for c in cars_data:
-                car = Car(id=c['id'], model=c['model'], number=c['number'], reserved=c['reserved'])
-                db.session.add(car)
+            for f in flights_data:
+                flight = Flight(id=f['id'], flight_number=f['flight_number'], departure_airport=f['departure_airport'], arrival_airport=f['arrival_airport'], departure_time=f['departure_time'], duration=f['duration'])
+                db.session.add(flight)
             db.session.commit()
             
-        if Trip.query.count() == 0:
-            trips_data = [
-                {'id': 1, 'phone': '+79846274627', 'sms_code': '1420', 'car_model': 'Kia Rio', 'car_number': 'о787оо50', 'fuel_level': '76%'},
-                {'id': 2, 'phone': '+79175628572', 'sms_code': '1100', 'car_model': 'VW Polo', 'car_number': 'м761он797', 'fuel_level': '56%'},
-                {'id': 3, 'phone': '+7916552451', 'sms_code': '1100', 'car_model': 'Toyota RAV4', 'car_number': 'н761он797', 'fuel_level': '11%'},
+        if Passenger.query.count() == 0:
+            passengers_data = [
+                {'id': 1, 'phone': '+7957285726', 'password': 'aercd112', 'miles': 123},
+                {'id': 2, 'phone': '+7957385621', 'password': 'okliuj91', 'miles': 91},
+                {'id': 3, 'phone': '+79175715718', 'password': '09ikjhbn12', 'miles': 192},
             ]
-            for t in trips_data:
-                trip = Trip(id=t['id'], phone=t['phone'], sms_code=t['sms_code'], car_model=t['car_model'], car_number=t['car_number'], fuel_level=t['fuel_level'])
-                db.session.add(trip)
+            for p in passengers_data:
+                passenger = Passenger(
+                    id=p['id'],
+                    phone=p['phone'],
+                    password=generate_password_hash(p['password']),
+                    miles=p['miles']
+                )
+                db.session.add(passenger)
+            db.session.commit()
+
+        # One-time migration for legacy plaintext passwords.
+        migrated = False
+        for passenger in Passenger.query.all():
+            if passenger.password and '$' not in passenger.password:
+                passenger.password = generate_password_hash(passenger.password)
+                migrated = True
+        if migrated:
             db.session.commit()
 
         from . import routes
         app.register_blueprint(routes.bp)
+
+        @app.get('/')
+        def index():
+            return render_template('index.html')
 
         @app.errorhandler(401)
         def unauthorized(e):
@@ -48,4 +75,4 @@ def create_app():
         def not_found(e):
             return jsonify(error="Not found"), 404
 
-    return app
+    return app 

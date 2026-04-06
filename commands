@@ -1,0 +1,20 @@
+# Получить список всех рейсов
+curl http://localhost:5001/api/flights
+
+# Получить накопленные мили со льготой (требует имя пользователя и пароль - успешные учетные данные)
+curl "http://localhost:5001/api/miles?phone=%2B7957285726&password=aercd112"
+
+# Получить накопленные мили со второго пользователя
+curl "http://localhost:5001/api/miles?phone=%2B7957385621&password=okliuj91"
+
+# Получить накопленные мили с третьего пользователя
+curl "http://localhost:5001/api/miles?phone=%2B79175715718&password=09ikjhbn12"
+
+# Нет параметров - 401
+curl "http://localhost:5001/api/miles"
+
+# Неверный пароль - 401
+curl "http://localhost:5001/api/miles?phone=%2B7957285726&password=wrongpassword"
+
+# Несуществующий телефон - 401
+curl "http://localhost:5001/api/miles?phone=%2B79999999999&password=password"

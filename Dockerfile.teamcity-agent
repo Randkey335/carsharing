@@ -2,16 +2,18 @@ FROM jetbrains/teamcity-agent:latest
 
 USER root
 
-# Установка Python, pip и sudo
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
-    flake8 \
-    sudo \
     && rm -rf /var/lib/apt/lists/*
 
-# Разрешаем buildagent использовать sudo для docker без пароля
-RUN echo "buildagent ALL=(ALL) NOPASSWD: /usr/bin/docker" >> /etc/sudoers
+COPY requirements-dev.txt /tmp/requirements-dev.txt
+COPY requirements.txt /tmp/requirements.txt
 
-USER buildagent
+RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements-dev.txt
+
+RUN echo '#!/bin/bash\nchmod 666 /var/run/docker.sock 2>/dev/null || true\nexec /run-services.sh' > /custom-entrypoint.sh && \
+    chmod +x /custom-entrypoint.sh
+
+ENTRYPOINT ["/custom-entrypoint.sh"]
